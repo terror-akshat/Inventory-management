@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: "https://inventory-management-yymx.onrender.com",
+  baseURL: "https://inventory-management-yymx.onrender.com/api",
   timeout: 15000,
 });
 
