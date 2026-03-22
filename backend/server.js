@@ -39,9 +39,6 @@ app.use(
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
 
-if (process.env.NODE_ENV === "development") {
-  app.use(morgan("dev"));
-}
 
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
