@@ -66,7 +66,7 @@ app.use(errorHandler);
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(
-      process.env.MONGODB_URI || "mongodb://localhost:27017/inventory_db",
+      "mongodb+srv://xyz_123:xyz_123@cluster0.4hgakcp.mongodb.net/?appName=Cluster0" || "mongodb://localhost:27017/inventory_db",
     );
     console.log(` MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {

@@ -5,7 +5,7 @@ const { seedDatabase } = require("./seedData");
 
 const seed = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect("mongodb+srv://xyz_123:xyz_123@cluster0.4hgakcp.mongodb.net/?appName=Cluster0");
     console.log("Connected to MongoDB");
 
     const result = await seedDatabase({ wipeExisting: true });
