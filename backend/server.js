@@ -14,6 +14,7 @@ const customerRoutes = require("./routes/customers");
 const transactionRoutes = require("./routes/transactions");
 const dashboardRoutes = require("./routes/dashboard");
 const reportRoutes = require("./routes/reports");
+const { seedDatabase } = require("./utils/seedData");
 
 const errorHandler = require("./middleware/errorHandler");
 
@@ -74,14 +75,40 @@ const connectDB = async () => {
   }
 };
 
+const bootstrapSeedData = async () => {
+  const shouldAutoSeed =
+    process.env.AUTO_SEED_ON_EMPTY_DB === undefined ||
+    process.env.AUTO_SEED_ON_EMPTY_DB === "true";
+
+  if (!shouldAutoSeed) {
+    console.log("Auto-seed on empty DB disabled");
+    return;
+  }
+
+  const result = await seedDatabase();
+
+  if (result.seeded) {
+    console.log("Seeded starter data because the database was empty");
+  } else {
+    console.log("Skipped starter seed because data already exists");
+  }
+};
+
 const PORT = process.env.PORT || 5000;
 
 connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(
-      ` Server running on port ${PORT} in ${process.env.NODE_ENV || "development"} mode`,
-    );
-  });
+  bootstrapSeedData()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(
+          ` Server running on port ${PORT} in ${process.env.NODE_ENV || "development"} mode`,
+        );
+      });
+    })
+    .catch((error) => {
+      console.error(" Seed bootstrap error:", error.message);
+      process.exit(1);
+    });
 });
 
 module.exports = app;
