@@ -29,12 +29,11 @@ const limiter = rateLimit({
   message: "Too many requests from this IP, please try again later.",
 });
 app.use("/api/", limiter);
-
 app.use(
   cors({
-    origin: ["https://invenm.netlify.app ", "http://localhost:3000"],
+    origin: "https://invenm.netlify.app",
     credentials: true,
-  }),
+  })
 );
 
 app.use(express.json({ limit: "10kb" }));
