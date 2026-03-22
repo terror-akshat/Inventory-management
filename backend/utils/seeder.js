@@ -9,7 +9,7 @@ const Transaction = require('../models/Transaction');
 
 const seed = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/inventory_db');
+    await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
 
     await Promise.all([
