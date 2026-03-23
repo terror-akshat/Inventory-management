@@ -15,31 +15,45 @@ const transactionRoutes = require("./routes/transactions");
 const dashboardRoutes = require("./routes/dashboard");
 const reportRoutes = require("./routes/reports");
 const { seedDatabase } = require("./utils/seedData");
-
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
+const allowedOrigins = (
+  process.env.CLIENT_URLS || "http://localhost:3000,http://127.0.0.1:3000"
+)
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
 
 app.use(helmet());
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(mongoSanitize());
 app.set("trust proxy", 1);
+
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: "Too many requests from this IP, please try again later.",
 });
+
 app.use("/api/", limiter);
-app.use(
-  cors({
-    origin: "https://invenm.netlify.app",
-    credentials: true,
-  })
-);
 
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
-
 
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
@@ -66,7 +80,7 @@ app.use(errorHandler);
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(
-      "mongodb+srv://xyz_123:xyz_123@cluster0.4hgakcp.mongodb.net/?appName=Cluster0" || "mongodb://localhost:27017/inventory_db",
+      "mongodb+srv://xyz_123:xyz_123@cluster0.4hgakcp.mongodb.net/?appName=Cluster0",
     );
     console.log(` MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {

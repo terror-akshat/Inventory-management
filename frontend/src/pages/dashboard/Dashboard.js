@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../../services/api';
+import { formatCurrency } from '../../utils/currency';
 
 const StatCard = ({ label, value, sub, color, icon }) => (
   <div className="card" style={{ position: 'relative', overflow: 'hidden' }}>
@@ -24,7 +25,7 @@ const CustomTooltip = ({ active, payload, label }) => {
       <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{label}</p>
       {payload.map((p, i) => (
         <p key={i} style={{ fontSize: 14, fontWeight: 700, color: p.color }}>
-          {p.name}: {typeof p.value === 'number' && p.name?.toLowerCase().includes('revenue') ? `$${p.value.toLocaleString()}` : p.value}
+          {p.name}: {typeof p.value === 'number' && p.name?.toLowerCase().includes('revenue') ? formatCurrency(p.value) : p.value}
         </p>
       ))}
     </div>
@@ -43,30 +44,28 @@ export default function Dashboard() {
   if (!data) return <div className="empty-state"><p>Failed to load dashboard.</p></div>;
 
   const { stats, lowStockProducts, recentTransactions, topProducts, chartData } = data;
-
-  // Process chart data
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const chartMap = {};
+
   (chartData || []).forEach(d => {
     const key = `${months[d._id.month - 1]} ${d._id.year}`;
     if (!chartMap[key]) chartMap[key] = { name: key, sales: 0, purchases: 0 };
     if (d._id.type === 'sale') chartMap[key].sales = Math.round(d.total);
     else chartMap[key].purchases = Math.round(d.total);
   });
+
   const chartArr = Object.values(chartMap);
 
   return (
     <div>
-      {/* Stats */}
       <div className="stats-grid">
-        <StatCard label="Total Products" value={stats.totalProducts} icon="◫" color="var(--accent)" sub={`Stock value: $${(stats.totalStockValue || 0).toLocaleString()}`} />
-        <StatCard label="Monthly Revenue" value={`$${(stats.monthlyRevenue || 0).toLocaleString()}`} icon="◈" color="var(--success)" sub={`${stats.revenueGrowth >= 0 ? '+' : ''}${stats.revenueGrowth}% vs last month`} />
-        <StatCard label="Low Stock Items" value={stats.lowStockCount} icon="⚠" color="var(--warning)" sub="Needs restocking" />
-        <StatCard label="Total Customers" value={stats.totalCustomers} icon="◎" color="var(--purple)" sub={`${stats.totalSuppliers} suppliers`} />
+        <StatCard label="Total Products" value={stats.totalProducts} icon="?" color="var(--accent)" sub={`Stock value: ${formatCurrency(stats.totalStockValue || 0)}`} />
+        <StatCard label="Monthly Revenue" value={formatCurrency(stats.monthlyRevenue || 0)} icon="?" color="var(--success)" sub={`${stats.revenueGrowth >= 0 ? '+' : ''}${stats.revenueGrowth}% vs last month`} />
+        <StatCard label="Low Stock Items" value={stats.lowStockCount} icon="?" color="var(--warning)" sub="Needs restocking" />
+        <StatCard label="Total Customers" value={stats.totalCustomers} icon="?" color="var(--purple)" sub={`${stats.totalSuppliers} suppliers`} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-        {/* Revenue chart */}
         <div className="card">
           <h3 style={{ fontWeight: 700, marginBottom: 20, fontSize: 15 }}>Revenue vs Purchases</h3>
           <ResponsiveContainer width="100%" height={220}>
@@ -91,7 +90,6 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        {/* Top products */}
         <div className="card">
           <h3 style={{ fontWeight: 700, marginBottom: 20, fontSize: 15 }}>Top Selling Products</h3>
           <ResponsiveContainer width="100%" height={220}>
@@ -107,14 +105,13 @@ export default function Dashboard() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        {/* Low Stock Alert */}
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ fontWeight: 700, fontSize: 15 }}>⚠ Low Stock Alert</h3>
-            <Link to="/products?lowStock=true" style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>View all →</Link>
+            <h3 style={{ fontWeight: 700, fontSize: 15 }}>Low Stock Alert</h3>
+            <Link to="/products?lowStock=true" style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>View all ?</Link>
           </div>
           {lowStockProducts.length === 0 ? (
-            <div className="empty-state" style={{ padding: '20px 0' }}><p>All stock levels are fine ✓</p></div>
+            <div className="empty-state" style={{ padding: '20px 0' }}><p>All stock levels are fine</p></div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {lowStockProducts.slice(0, 5).map(p => (
@@ -133,11 +130,10 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Recent Transactions */}
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ fontWeight: 700, fontSize: 15 }}>Recent Transactions</h3>
-            <Link to="/transactions" style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>View all →</Link>
+            <Link to="/transactions" style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>View all ?</Link>
           </div>
           {recentTransactions.length === 0 ? (
             <div className="empty-state" style={{ padding: '20px 0' }}><p>No transactions yet</p></div>
@@ -148,12 +144,12 @@ export default function Dashboard() {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span className={`badge ${t.type === 'sale' ? 'badge-success' : 'badge-purple'}`}>{t.type}</span>
-                      <p style={{ fontSize: 13, fontWeight: 600 }}>{t.customer?.name || t.supplier?.name || '—'}</p>
+                      <p style={{ fontSize: 13, fontWeight: 600 }}>{t.customer?.name || t.supplier?.name || '�'}</p>
                     </div>
                     <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{new Date(t.date).toLocaleDateString()}</p>
                   </div>
                   <p style={{ fontSize: 15, fontWeight: 800, color: t.type === 'sale' ? 'var(--success)' : 'var(--text-primary)' }}>
-                    {t.type === 'sale' ? '+' : '-'}${t.totalAmount.toLocaleString()}
+                    {t.type === 'sale' ? '+' : '-'}{formatCurrency(t.totalAmount)}
                   </p>
                 </div>
               ))}

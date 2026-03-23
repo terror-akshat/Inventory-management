@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 
 const PAGE_TITLES = {
   '/dashboard': { title: 'Dashboard', subtitle: 'Overview of your inventory' },
@@ -14,6 +15,7 @@ const PAGE_TITLES = {
 export default function Header() {
   const location = useLocation();
   const { user } = useAuth();
+  const { theme, toggleTheme, isDark } = useTheme();
   const pageInfo = PAGE_TITLES[location.pathname] || { title: 'StockFlow', subtitle: '' };
   const now = new Date();
   const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -36,6 +38,10 @@ export default function Header() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+        <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label={`Switch to ${isDark ? 'light' : 'dark'} theme`}>
+          <span className="theme-toggle-icon">{isDark ? 'Light' : 'Dark'}</span>
+          <span>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
+        </button>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{timeStr}</div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{dateStr}</div>

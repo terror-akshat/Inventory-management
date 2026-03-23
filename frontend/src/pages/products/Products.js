@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { formatCurrency } from '../../utils/currency';
 
 const emptyForm = { name: '', category: '', quantity: '', price: '', costPrice: '', supplier: '', lowStockThreshold: 10, description: '', unit: 'pcs', sku: '', expiryDate: '' };
 
@@ -23,45 +24,62 @@ export default function Products() {
     setLoading(true);
     try {
       const params = { page, limit: 10, ...filters };
-      Object.keys(params).forEach(k => !params[k] && delete params[k]);
+      Object.keys(params).forEach((key) => !params[key] && delete params[key]);
       const { data } = await api.get('/products', { params });
       setProducts(data.products);
       setPagination({ page: data.page, pages: data.pages, total: data.total });
-    } catch { toast.error('Failed to load products'); }
-    finally { setLoading(false); }
+    } catch {
+      toast.error('Failed to load products');
+    } finally {
+      setLoading(false);
+    }
   }, [filters]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   useEffect(() => {
-    api.get('/suppliers', { params: { limit: 100 } }).then(r => setSuppliers(r.data.suppliers || []));
-    api.get('/products/categories').then(r => setCategories(r.data.categories || []));
+    api.get('/suppliers', { params: { limit: 100 } }).then((response) => setSuppliers(response.data.suppliers || []));
+    api.get('/products/categories').then((response) => setCategories(response.data.categories || []));
   }, []);
 
-  const openAdd = () => { setForm(emptyForm); setModal({ open: true, mode: 'add', data: null }); };
-  const openEdit = (p) => {
-    setForm({ ...emptyForm, ...p, supplier: p.supplier?._id || '', expiryDate: p.expiryDate ? p.expiryDate.slice(0, 10) : '' });
-    setModal({ open: true, mode: 'edit', data: p });
+  const openAdd = () => {
+    setForm(emptyForm);
+    setModal({ open: true, mode: 'add', data: null });
   };
 
-  const handleSave = async (e) => {
-    e.preventDefault();
+  const openEdit = (product) => {
+    setForm({
+      ...emptyForm,
+      ...product,
+      supplier: product.supplier?._id || '',
+      expiryDate: product.expiryDate ? product.expiryDate.slice(0, 10) : '',
+    });
+    setModal({ open: true, mode: 'edit', data: product });
+  };
+
+  const handleSave = async (event) => {
+    event.preventDefault();
     setSaving(true);
     try {
       const payload = { ...form };
       if (!payload.supplier) delete payload.supplier;
       if (!payload.expiryDate) delete payload.expiryDate;
+
       if (modal.mode === 'add') {
         await api.post('/products', payload);
-        toast.success('Product created!');
+        toast.success('Product created');
       } else {
         await api.put(`/products/${modal.data._id}`, payload);
-        toast.success('Product updated!');
+        toast.success('Product updated');
       }
+
       setModal({ open: false });
       fetchProducts(pagination.page);
-    } catch (err) { toast.error(err.response?.data?.message || 'Failed to save'); }
-    finally { setSaving(false); }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to save product');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -70,10 +88,12 @@ export default function Products() {
       toast.success('Product deleted');
       setDeleteId(null);
       fetchProducts(pagination.page);
-    } catch { toast.error('Failed to delete'); }
+    } catch {
+      toast.error('Failed to delete product');
+    }
   };
 
-  const f = (key, val) => setFilters(p => ({ ...p, [key]: val }));
+  const updateFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
 
   return (
     <div>
@@ -85,21 +105,20 @@ export default function Products() {
         {isAdmin && <button className="btn btn-primary" onClick={openAdd}>+ Add Product</button>}
       </div>
 
-      {/* Filters */}
       <div className="filters-row">
         <div className="search-bar">
-          <span className="search-icon">⌕</span>
-          <input className="form-input" placeholder="Search products..." value={filters.search} onChange={e => f('search', e.target.value)} />
+          <span className="search-icon">Search</span>
+          <input className="form-input" placeholder="Search products..." value={filters.search} onChange={(event) => updateFilter('search', event.target.value)} />
         </div>
-        <select className="form-select" style={{ width: 160 }} value={filters.category} onChange={e => f('category', e.target.value)}>
+        <select className="form-select" style={{ width: 160 }} value={filters.category} onChange={(event) => updateFilter('category', event.target.value)}>
           <option value="">All Categories</option>
-          {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          {categories.map((category) => <option key={category} value={category}>{category}</option>)}
         </select>
-        <select className="form-select" style={{ width: 140 }} value={filters.lowStock} onChange={e => f('lowStock', e.target.value)}>
+        <select className="form-select" style={{ width: 140 }} value={filters.lowStock} onChange={(event) => updateFilter('lowStock', event.target.value)}>
           <option value="">All Stock</option>
           <option value="true">Low Stock</option>
         </select>
-        <select className="form-select" style={{ width: 160 }} value={filters.sort} onChange={e => f('sort', e.target.value)}>
+        <select className="form-select" style={{ width: 160 }} value={filters.sort} onChange={(event) => updateFilter('sort', event.target.value)}>
           <option value="-createdAt">Newest First</option>
           <option value="createdAt">Oldest First</option>
           <option value="name">Name A-Z</option>
@@ -109,44 +128,48 @@ export default function Products() {
         </select>
       </div>
 
-      {/* Table */}
       {loading ? <div className="loading-screen"><div className="spinner" /></div> : (
         <div className="table-container">
           <table>
             <thead>
               <tr>
-                <th>Product</th><th>SKU</th><th>Category</th>
-                <th>Qty</th><th>Price</th><th>Supplier</th><th>Status</th>
+                <th>Product</th>
+                <th>SKU</th>
+                <th>Category</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Supplier</th>
+                <th>Status</th>
                 {isAdmin && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
               {products.length === 0 ? (
                 <tr><td colSpan={8} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No products found</td></tr>
-              ) : products.map(p => {
-                const isLow = p.quantity <= p.lowStockThreshold;
+              ) : products.map((product) => {
+                const isLow = product.quantity <= product.lowStockThreshold;
                 return (
-                  <tr key={p._id}>
+                  <tr key={product._id}>
                     <td>
-                      <p style={{ fontWeight: 600 }}>{p.name}</p>
-                      {p.expiryDate && <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Exp: {new Date(p.expiryDate).toLocaleDateString()}</p>}
+                      <p style={{ fontWeight: 600 }}>{product.name}</p>
+                      {product.expiryDate && <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Exp: {new Date(product.expiryDate).toLocaleDateString()}</p>}
                     </td>
-                    <td><code style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>{p.sku}</code></td>
-                    <td><span className="badge badge-info">{p.category}</span></td>
+                    <td><code style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>{product.sku}</code></td>
+                    <td><span className="badge badge-info">{product.category}</span></td>
                     <td>
                       <span style={{ fontWeight: 700, color: isLow ? 'var(--warning)' : 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
-                        {p.quantity} {p.unit}
+                        {product.quantity} {product.unit}
                       </span>
-                      {isLow && <p style={{ fontSize: 11, color: 'var(--warning)' }}>⚠ Low</p>}
+                      {isLow && <p style={{ fontSize: 11, color: 'var(--warning)' }}>Low stock</p>}
                     </td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>${p.price}</td>
-                    <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{p.supplier?.name || '—'}</td>
-                    <td><span className={`badge ${p.quantity === 0 ? 'badge-danger' : isLow ? 'badge-warning' : 'badge-success'}`}>{p.quantity === 0 ? 'Out of Stock' : isLow ? 'Low Stock' : 'In Stock'}</span></td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatCurrency(product.price)}</td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{product.supplier?.name || '-'}</td>
+                    <td><span className={`badge ${product.quantity === 0 ? 'badge-danger' : isLow ? 'badge-warning' : 'badge-success'}`}>{product.quantity === 0 ? 'Out of Stock' : isLow ? 'Low Stock' : 'In Stock'}</span></td>
                     {isAdmin && (
                       <td>
                         <div style={{ display: 'flex', gap: 6 }}>
-                          <button className="btn btn-secondary btn-sm" onClick={() => openEdit(p)}>Edit</button>
-                          <button className="btn btn-danger btn-sm" onClick={() => setDeleteId(p._id)}>Del</button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => openEdit(product)}>Edit</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => setDeleteId(product._id)}>Delete</button>
                         </div>
                       </td>
                     )}
@@ -158,48 +181,46 @@ export default function Products() {
         </div>
       )}
 
-      {/* Pagination */}
       {pagination.pages > 1 && (
         <div className="pagination">
           <span className="pagination-info">Showing {products.length} of {pagination.total}</span>
-          <button className="page-btn" disabled={pagination.page === 1} onClick={() => fetchProducts(pagination.page - 1)}>‹ Prev</button>
-          {[...Array(Math.min(pagination.pages, 5))].map((_, i) => {
-            const pg = i + 1;
-            return <button key={pg} className={`page-btn ${pagination.page === pg ? 'active' : ''}`} onClick={() => fetchProducts(pg)}>{pg}</button>;
+          <button className="page-btn" disabled={pagination.page === 1} onClick={() => fetchProducts(pagination.page - 1)}>Prev</button>
+          {[...Array(Math.min(pagination.pages, 5))].map((_, index) => {
+            const pageNumber = index + 1;
+            return <button key={pageNumber} className={`page-btn ${pagination.page === pageNumber ? 'active' : ''}`} onClick={() => fetchProducts(pageNumber)}>{pageNumber}</button>;
           })}
-          <button className="page-btn" disabled={pagination.page === pagination.pages} onClick={() => fetchProducts(pagination.page + 1)}>Next ›</button>
+          <button className="page-btn" disabled={pagination.page === pagination.pages} onClick={() => fetchProducts(pagination.page + 1)}>Next</button>
         </div>
       )}
 
-      {/* Add/Edit Modal */}
       {modal.open && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setModal({ open: false })}>
+        <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && setModal({ open: false })}>
           <div className="modal" style={{ maxWidth: 640 }}>
             <div className="modal-header">
               <h3 className="modal-title">{modal.mode === 'add' ? 'Add Product' : 'Edit Product'}</h3>
-              <button className="modal-close" onClick={() => setModal({ open: false })}>×</button>
+              <button className="modal-close" onClick={() => setModal({ open: false })}>x</button>
             </div>
             <form onSubmit={handleSave}>
               <div className="modal-body">
                 <div className="form-grid">
-                  <div className="form-group"><label className="form-label">Product Name *</label><input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></div>
+                  <div className="form-group"><label className="form-label">Product Name *</label><input className="form-input" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></div>
                   <div className="form-group"><label className="form-label">Category *</label>
-                    <input className="form-input" list="cat-list" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} required />
-                    <datalist id="cat-list">{categories.map(c => <option key={c} value={c} />)}</datalist>
+                    <input className="form-input" list="cat-list" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} required />
+                    <datalist id="cat-list">{categories.map((category) => <option key={category} value={category} />)}</datalist>
                   </div>
-                  <div className="form-group"><label className="form-label">Quantity *</label><input className="form-input" type="number" min="0" value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} required /></div>
-                  <div className="form-group"><label className="form-label">Unit</label><input className="form-input" value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} placeholder="pcs" /></div>
-                  <div className="form-group"><label className="form-label">Selling Price *</label><input className="form-input" type="number" step="0.01" min="0" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} required /></div>
-                  <div className="form-group"><label className="form-label">Cost Price</label><input className="form-input" type="number" step="0.01" min="0" value={form.costPrice} onChange={e => setForm({ ...form, costPrice: e.target.value })} /></div>
-                  <div className="form-group"><label className="form-label">Low Stock Threshold</label><input className="form-input" type="number" min="0" value={form.lowStockThreshold} onChange={e => setForm({ ...form, lowStockThreshold: e.target.value })} /></div>
-                  <div className="form-group"><label className="form-label">Expiry Date</label><input className="form-input" type="date" value={form.expiryDate} onChange={e => setForm({ ...form, expiryDate: e.target.value })} /></div>
+                  <div className="form-group"><label className="form-label">Quantity *</label><input className="form-input" type="number" min="0" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} required /></div>
+                  <div className="form-group"><label className="form-label">Unit</label><input className="form-input" value={form.unit} onChange={(event) => setForm({ ...form, unit: event.target.value })} placeholder="pcs" /></div>
+                  <div className="form-group"><label className="form-label">Selling Price (INR) *</label><input className="form-input" type="number" step="0.01" min="0" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} required /></div>
+                  <div className="form-group"><label className="form-label">Cost Price (INR)</label><input className="form-input" type="number" step="0.01" min="0" value={form.costPrice} onChange={(event) => setForm({ ...form, costPrice: event.target.value })} /></div>
+                  <div className="form-group"><label className="form-label">Low Stock Threshold</label><input className="form-input" type="number" min="0" value={form.lowStockThreshold} onChange={(event) => setForm({ ...form, lowStockThreshold: event.target.value })} /></div>
+                  <div className="form-group"><label className="form-label">Expiry Date</label><input className="form-input" type="date" value={form.expiryDate} onChange={(event) => setForm({ ...form, expiryDate: event.target.value })} /></div>
                   <div className="form-group full-width"><label className="form-label">Supplier</label>
-                    <select className="form-select" value={form.supplier} onChange={e => setForm({ ...form, supplier: e.target.value })}>
+                    <select className="form-select" value={form.supplier} onChange={(event) => setForm({ ...form, supplier: event.target.value })}>
                       <option value="">No Supplier</option>
-                      {suppliers.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                      {suppliers.map((supplier) => <option key={supplier._id} value={supplier._id}>{supplier.name}</option>)}
                     </select>
                   </div>
-                  <div className="form-group full-width"><label className="form-label">Description</label><textarea className="form-textarea" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
+                  <div className="form-group full-width"><label className="form-label">Description</label><textarea className="form-textarea" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></div>
                 </div>
               </div>
               <div className="modal-footer">
@@ -211,7 +232,6 @@ export default function Products() {
         </div>
       )}
 
-      {/* Delete Confirm */}
       {deleteId && (
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth: 400 }}>
